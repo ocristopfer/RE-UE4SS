@@ -8,6 +8,18 @@
 #include <SigScanner/Common.hpp>
 #include <Helpers/UETargetModules.hpp>
 
+#ifndef _WIN32
+// There is no Windows.h on Linux: the fields of SYSTEM_INFO the scanner reads, filled from
+// /proc/self/maps by the Linux GetSystemInfo in SinglePassSigScanner.cpp.
+struct _SYSTEM_INFO
+{
+    void* lpMinimumApplicationAddress;
+    void* lpMaximumApplicationAddress;
+    unsigned long dwPageSize;
+};
+typedef _SYSTEM_INFO SYSTEM_INFO;
+#endif
+
 #define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
 #define LO_NIBBLE(b) ((b) & 0x0F)
 

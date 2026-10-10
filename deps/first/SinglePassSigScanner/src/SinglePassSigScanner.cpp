@@ -637,12 +637,12 @@ namespace RC
 
         if (!SigScannerStaticData::m_is_modular)
         {
-            MODULEINFO merged_module_info{};
+            OS_MODULEINFO merged_module_info{};
             std::vector<SignatureContainer> merged_containers;
 
             for (const auto& [scan_target, outer_container] : signature_containers)
             {
-                merged_module_info = *std::bit_cast<MODULEINFO*>(&SigScannerStaticData::m_modules_info[scan_target]);
+                merged_module_info = SigScannerStaticData::m_modules_info.array[static_cast<size_t>(scan_target)];
                 for (const auto& signature_container : outer_container)
                 {
                     merged_containers.emplace_back(signature_container);

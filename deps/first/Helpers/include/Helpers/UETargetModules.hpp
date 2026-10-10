@@ -3,7 +3,10 @@
 #include <Helpers/Common.hpp>
 
 #include <array>
+#include <cstdint>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #ifdef _WIN32
 // Windows.h forward declarations
@@ -11,27 +14,16 @@ struct _SYSTEM_INFO;
 typedef _SYSTEM_INFO SYSTEM_INFO;
 struct _MODULEINFO;
 typedef _MODULEINFO MODULEINFO;
+#elifdef __linux__
+// No platform declarations required here.
 #else
-// There is no Windows.h on Linux: the same shapes, with the fields the scanner uses. Filled from
-// dl_iterate_phdr (modules) and /proc/self/maps (memory) by the Linux code paths.
-struct _MODULEINFO
-{
-    void* lpBaseOfDll;
-    unsigned long SizeOfImage;
-    void* EntryPoint;
-};
-typedef _MODULEINFO MODULEINFO;
-struct _SYSTEM_INFO
-{
-    void* lpMinimumApplicationAddress;
-    void* lpMaximumApplicationAddress;
-    unsigned long dwPageSize;
-};
-typedef _SYSTEM_INFO SYSTEM_INFO;
+#error "UETargetModules is not supported on this platform"
 #endif
 
 namespace RC
 {
+// MODULEINFO and SYSTEM_INFO are Windows API types and are not defined on Linux.
+#ifdef _WIN32
     // Windows structs, to prevent the need to include Windows.h in this header
     struct RC_HELPERS_API WIN_MODULEINFO
     {
@@ -41,6 +33,23 @@ namespace RC
 
         auto operator=(MODULEINFO) -> WIN_MODULEINFO&;
     };
+
+    using OS_MODULEINFO = WIN_MODULEINFO;
+#elifdef __linux__
+	// Provide a Linux equivalent.
+    struct RC_HELPERS_API LINUX_MODULEINFO
+    {
+        void* lpBaseOfDll{};
+        unsigned long SizeOfImage{};
+		
+		// Absolute start, size, and ELF p_flags for each readable PT_LOAD segment.
+        std::vector<std::tuple<uint8_t*, size_t, int>> readable_segments{};
+    };
+
+    using OS_MODULEINFO = LINUX_MODULEINFO;
+#else
+#error "UETargetModules is not supported on this platform"
+#endif
 
     enum class ScanTarget
     {
@@ -189,9 +198,16 @@ namespace RC
     class ScanTargetArray
     {
     public:
-        std::array<WIN_MODULEINFO, static_cast<size_t>(ScanTarget::Max)> array{};
+        std::array<OS_MODULEINFO, static_cast<size_t>(ScanTarget::Max)> array{};
 
+#ifdef _WIN32
         RC_HELPERS_API auto operator[](ScanTarget index) -> MODULEINFO&;
         RC_HELPERS_API auto operator[](ScanTarget index) const -> MODULEINFO&;
+#elifdef __linux__
+        RC_HELPERS_API auto operator[](ScanTarget index) -> LINUX_MODULEINFO&;
+        RC_HELPERS_API auto operator[](ScanTarget index) const -> LINUX_MODULEINFO&;
+#else
+#error "UETargetModules is not supported on this platform"
+#endif
     };
 }
