@@ -1,0 +1,2 @@
+# Run in Linux containers and runners: keep every file of this folder LF on any OS.
+* text eol=lf

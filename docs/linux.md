@@ -106,3 +106,37 @@ python3 tools/linux-layouts/ue_vtable_layout.py <executable> assets/VTableLayout
   mod.io SDK aborted, Sandstorm's allocator saw foreign blocks). Only `RC::` and Lua are exported.
 - **Layouts from DWARF** (`tools/linux-layouts/ue_layout_from_dwarf.py`): the same bodies as the
   source tools, read from a server's `.debug` - no Unreal source or UnrealBuildTool needed.
+
+## Upstream sync, tests and releases
+
+The fork follows upstream on its own, and nothing reaches users without passing the tests:
+
+- **Sync** (`.github/workflows/linux-sync.yml`, daily): `main` of this fork and of
+  `ocristopfer/UEPseudo` fast-forward to `UE4SS-RE/RE-UE4SS` and `Re-UE4SS/UEPseudo`; upstream
+  `main` is merged into `linux` on the branch `sync/upstream` (`tools/linux-release/sync_upstream.sh`)
+  and a pull request is opened. When upstream moved the UEPseudo pin, the pin becomes our UEPseudo
+  merge, which must contain upstream's. A conflict opens an issue (label `upstream-sync`) instead.
+- **CI** (`.github/workflows/linux-ci.yml`, every pull request into `linux`): the Clang build, the
+  unit tests of `tests/linux` (Itanium vtable shift, ProcessLocalScriptFunction tail jump, the
+  scanner over a real ELF image, the exported symbols, the library staying inert outside a game) and
+  the **integration tests** on real dedicated servers (`tests/linux/integration`): each server of
+  `games.json` starts in Docker with the candidate files, installed by the game panel's own installer
+  (`ue4ss_linux_remote.py`, pinned in `panel.ref`), and a probe mod must find the GameState, hook
+  native and Blueprint functions, run code on the game thread and see the server still alive. The
+  game volume is mounted read-only under an overlay. `gate` games must pass; `all` runs every one.
+- **Release** (`.github/workflows/linux-release.yml`, every push to `linux`): when anything users
+  install changed since the last `linux-v*` tag, the same build goes through CI and the integration
+  gate, and those exact files become `linux-vN` with the test results in the notes. The game panel
+  pins a tag per game profile, so a new release reaches a server only when its profile is moved.
+
+The integration tests run on a self-hosted runner (label `ue4ss-games`) on a machine with the game
+volumes: `tools/linux-release/runner/setup.sh`. Secrets: `FORK_SYNC_TOKEN` (classic token, scopes
+`repo` and `workflow`, from an account that can read `Re-UE4SS/UEPseudo`) and, optionally,
+`DRAGONWILDS_OWNER_ID` (the Steam ID the Dragonwilds test server is registered to).
+
+Run the integration tests locally against a release directory:
+
+```bash
+tools/linux-release/package.sh <libUE4SS.so> <LinuxReferencePacks.tar.gz> rc/
+tests/linux/integration/run.sh rc/ gate results/     # or: all, or palworld,squad
+```

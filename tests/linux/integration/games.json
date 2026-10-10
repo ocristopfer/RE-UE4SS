@@ -1,0 +1,79 @@
+{
+  "_comment": [
+    "Linux dedicated servers the release is tested on (docs/linux.md, 'Supported and tested games').",
+    "volume: the Docker volume with the server installed (steamcmd), mounted read-only under an overlay.",
+    "project/engine: as the game panel's profile has them (ue4ss goes to <project>/Binaries/Linux).",
+    "start/args: the panel catalog's start_script and start_args, with test ports.",
+    "gate: true = must pass before a release; the others run with games=all.",
+    "prepare: shell run as root in the overlay before the server starts."
+  ],
+  "games": {
+    "palworld": {
+      "volume": "palworld-game", "project": "Pal", "engine": "5.1", "gate": true,
+      "start": "Pal/Binaries/Linux/PalServer-Linux-Shipping",
+      "args": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -port=8211 -queryport=27015",
+      "prepare": "cfg=/opt/game/Pal/Saved/Config/LinuxServer && install -d -o steam -g steam $cfg && { [ -s $cfg/PalWorldSettings.ini ] || install -o steam -g steam -m 0644 /opt/game/DefaultPalWorldSettings.ini $cfg/PalWorldSettings.ini; }"
+    },
+    "dragonwilds": {
+      "volume": "dragonwilds-game", "project": "RSDragonwilds", "engine": "5.6", "gate": true,
+      "start": "RSDragonwildsServer.sh", "args": "-log -Port=7777",
+      "prepare": "cfg=/opt/game/RSDragonwilds/Saved/Config/LinuxServer && install -d -o steam -g steam $cfg && printf '[/Script/Dominion.DedicatedServerSettings]\\nOwnerId=%s\\nServerGuid=5E6A1C2B9D2B4F57A1D3E0F7C4B8A9D1\\nServerName=UE4SS-CI\\nDefaultWorldName=UE4SS-CI\\nPlatformPolicy=Crossplay\\n' \"${DRAGONWILDS_OWNER_ID:-76561197960265729}\" > $cfg/DedicatedServer.ini && chown steam:steam $cfg/DedicatedServer.ini"
+    },
+    "squad-44": {
+      "volume": "ue-squad44", "project": "PostScriptum", "engine": "4.27", "gate": true,
+      "start": "PostScriptumServer.sh", "args": "-Port=10027 -QueryPort=27165 -log"
+    },
+    "soulmask": {
+      "volume": "ue-soulmask", "project": "WS", "engine": "4.27", "gate": true,
+      "start": "WS/Binaries/Linux/WSServer-Linux-Shipping",
+      "args": "WS Level01_Main -Port=8777 -EchoPort=18888 -QueryPort=27015 -MaxPlayers=50 -UTF8Output -forcepassthrough -log"
+    },
+    "mordhau": {
+      "volume": "ue-mordhau", "project": "Mordhau", "engine": "4.26", "gate": true,
+      "start": "Mordhau/Binaries/Linux/MordhauServer-Linux-Shipping",
+      "args": "Mordhau FFA_ThePit -Port=7777 -BeaconPort=15000 -QueryPort=27015 -log"
+    },
+    "the-bus": {
+      "volume": "ue-thebus", "project": "TheBus", "engine": "5.6", "gate": true,
+      "start": "TheBus/Binaries/Linux/TheBusServer_Linux", "args": "-log -useperfthreads -port=7778"
+    },
+    "squad": {
+      "volume": "ue-squad", "project": "SquadGame", "engine": "5.7", "gate": true,
+      "start": "SquadGameServer.sh", "args": "-Port=7787 -QueryPort=27165"
+    },
+    "pavlov-vr": {
+      "volume": "ue-pavlov", "project": "Pavlov", "engine": "5.1",
+      "start": "Pavlov/Binaries/Linux/PavlovServer-Linux-Shipping", "args": "Pavlov datacenter -Port=7777 -log"
+    },
+    "the-front": {
+      "volume": "ue-thefront", "project": "ProjectWar", "engine": "4.27",
+      "start": "ProjectWar/Binaries/Linux/TheFrontServer", "args": ""
+    },
+    "smalland": {
+      "volume": "ue-smalland", "project": "SMALLAND", "engine": "4.27",
+      "start": "SMALLAND/Binaries/Linux/SMALLANDServer-Linux-Shipping", "args": "SMALLAND"
+    },
+    "insurgency-sandstorm": {
+      "volume": "ue-sandstorm", "project": "Insurgency", "engine": "4.27",
+      "start": "Insurgency/Binaries/Linux/InsurgencyServer-Linux-Shipping",
+      "args": "Oilfield?Scenario=Scenario_Refinery_Push_Security?MaxPlayers=28 -Port=27102 -QueryPort=27131 -log"
+    },
+    "astro-colony": {
+      "volume": "ue-astrocolony", "project": "AstroColony", "engine": "4.27",
+      "start": "AstroColony/Binaries/Linux/AstroColonyServer", "args": "-log -QueryPort=27015"
+    },
+    "hypercharge-unboxed": {
+      "volume": "ue-hypercharge", "project": "Unboxed", "engine": "4.26",
+      "start": "Unboxed/Binaries/Linux/UnboxedServer-Linux-Shipping", "args": "KidsBedroom?MaxPlayers=8 -Port=7777 -QueryPort=27015"
+    },
+    "vein": {
+      "volume": "ue-vein", "project": "Vein", "engine": "5.6",
+      "start": "Vein/Binaries/Linux/VeinServer-Linux-Test", "args": "-Port=7777 -QueryPort=27015 -log"
+    },
+    "qanga": {
+      "volume": "ue-qanga", "project": "Qanga", "engine": "5.7",
+      "start": "Qanga/Binaries/Linux/QangaServer-Linux-Shipping",
+      "args": "Qanga /Game/Maps/Universe/L_Persistent_Universe? -server -log -port=10000 -map=L_Persistent_Universe -QueryPort=27015"
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# Run in Linux containers: a CRLF checkout breaks bash ("pipefail: invalid option") and the
+# Dockerfiles. Keep every file of this folder LF on any OS.
+* text eol=lf

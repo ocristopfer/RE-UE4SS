@@ -1,0 +1,144 @@
+# Linux build of the fork: libUE4SS.so with Clang, the unit tests (tests/linux) and the integration
+# tests on real dedicated servers (tests/linux/integration), on the self-hosted runner that has the
+# game volumes. Runs on every pull request into `linux` (the upstream sync ones included) and is
+# called by linux-release.yml before anything is published.
+name: Linux CI
+
+on:
+  pull_request:
+    branches: [linux]
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Servers to test: gate, all, or names from tests/linux/integration/games.json"
+        type: string
+        default: gate
+  workflow_call:
+    inputs:
+      games:
+        type: string
+        default: gate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Game__Shipping__Linux
+
+jobs:
+  build:
+    name: Build and unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Submodules
+        # UEPseudo (ocristopfer/UEPseudo) is private, like upstream's: FORK_SYNC_TOKEN reads it.
+        # patternsleuth is declared with an SSH URL; the runner fetches over HTTPS.
+        env:
+          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "::error::the FORK_SYNC_TOKEN secret is needed to fetch the private UEPseudo submodule"; exit 1; fi
+          git -c url."https://x-access-token:${TOKEN}@github.com/ocristopfer/UEPseudo".insteadOf="https://github.com/ocristopfer/UEPseudo"               -c url."https://github.com/".insteadOf="git@github.com:"               submodule update --init --recursive --depth 1
+
+      - name: Toolchain (Clang 20, Ninja, ccache)
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends clang-20 lld-20 llvm-20 ninja-build ccache
+          rustup toolchain install stable --profile minimal
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/.cargo/registry
+            build/cargo
+          key: linux-build-${{ github.sha }}
+          restore-keys: linux-build-
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -Wno-dev
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+          -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DUE4SS_GUI_ENABLED=OFF -DUE4SS_INPUT_ENABLED=OFF -DUE4SS_CONSOLE_COLORS_ENABLED=OFF
+          -DUE4SS_PROFILERS=OFF -DUE4SS_LINUX_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --target UE4SS linux_itanium_abi_test linux_scanner_selfscan_test
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Python tools compile
+        run: python3 -m py_compile tools/linux-layouts/*.py tests/linux/integration/run_game.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libUE4SS-linux
+          path: build/${{ env.BUILD_TYPE }}/lib/libUE4SS.so
+          if-no-files-found: error
+          retention-days: 30
+
+  integration:
+    name: Integration (real servers)
+    needs: build
+    # The self-hosted runner runs game servers on the owner's machine: never for a pull request
+    # from another repository.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, ue4ss-games]
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DRAGONWILDS_OWNER_ID: ${{ secrets.DRAGONWILDS_OWNER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: libUE4SS-linux
+          path: candidate
+
+      - name: Reference packs of the latest Linux release
+        run: |
+          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 50 --json tagName --jq '[.[].tagName | select(startswith("linux-v"))] | sort_by(ltrimstr("linux-v") | tonumber) | last')
+          echo "packs from $tag"
+          gh release download "$tag" -R "$GITHUB_REPOSITORY" -p LinuxReferencePacks.tar.gz -D candidate
+
+      - name: Release candidate
+        run: bash tools/linux-release/package.sh candidate/libUE4SS.so candidate/LinuxReferencePacks.tar.gz release-candidate
+
+      - name: Servers
+        run: bash tests/linux/integration/run.sh release-candidate "${{ inputs.games || 'gate' }}" integration-results
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo "### Integration on real servers"; echo; cat integration-results/summary.md 2>/dev/null || echo "no summary"; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-results
+          path: |
+            integration-results/*/result.json
+            integration-results/*/server.log
+            integration-results/summary.md
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: release-candidate
+          retention-days: 30

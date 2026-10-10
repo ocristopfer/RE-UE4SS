@@ -1,0 +1,142 @@
+# Publishes `linux-vN` when `linux` changes what users install, and only after the same build passed
+# the unit tests and the integration tests on real servers (linux-ci.yml). The release files are the
+# exact ones the integration tests installed. Users are not moved by a new release: the game panel
+# pins a tag per game profile, and moving a profile to the new tag is a decision made there.
+name: Linux release
+
+on:
+  push:
+    branches: [linux]
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Servers that must pass: gate, all, or names"
+        type: string
+        default: gate
+      force:
+        description: "Release even if nothing users install changed since the last tag"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-release
+  cancel-in-progress: false
+
+jobs:
+  uepseudo:
+    name: UEPseudo linux follows the pin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Fast-forward ocristopfer/UEPseudo linux to the commit this branch uses
+        # The upstream sync merges UEPseudo on its `sync/upstream` branch; once that pull request is
+        # merged here, UEPseudo's `linux` moves to the same commit (fast-forward only).
+        env:
+          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "::warning::FORK_SYNC_TOKEN is not set; UEPseudo linux not checked"; exit 0; fi
+          pin=$(git rev-parse HEAD:deps/first/Unreal)
+          git clone -q --bare --filter=blob:none "https://x-access-token:$TOKEN@github.com/ocristopfer/UEPseudo.git" uep
+          cd uep
+          git fetch -q origin "$pin" || { echo "::error::UEPseudo $pin is not on ocristopfer/UEPseudo"; exit 1; }
+          if git merge-base --is-ancestor "$pin" linux; then echo "UEPseudo linux already contains $pin"; exit 0; fi
+          git merge-base --is-ancestor linux "$pin" || { echo "::error::UEPseudo linux diverged from $pin"; exit 1; }
+          git push -q origin "$pin:refs/heads/linux"
+          echo "UEPseudo linux -> $pin"
+
+  changes:
+    name: Anything users install changed?
+    runs-on: ubuntu-24.04
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      previous: ${{ steps.check.outputs.previous }}
+      next: ${{ steps.check.outputs.next }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: check
+        run: |
+          previous=$(git tag -l 'linux-v*' | sort -V | tail -1)
+          n=${previous#linux-v}
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "next=linux-v$((n + 1))" >> "$GITHUB_OUTPUT"
+          paths="UE4SS deps cmake CMakeLists.txt cppmods assets/UE4SS-settings.ini assets/Mods/shared assets/VTableLayoutTemplates"
+          if [ "${{ inputs.force }}" = true ] || [ -z "$previous" ] || [ -n "$(git diff --name-only "$previous" HEAD -- $paths)" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing users install changed since $previous: no release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  test:
+    name: CI
+    needs: [uepseudo, changes]
+    if: needs.changes.outputs.release == 'true'
+    uses: ./.github/workflows/linux-ci.yml
+    with:
+      games: ${{ inputs.games || 'gate' }}
+    secrets: inherit
+
+  publish:
+    name: Publish
+    needs: [changes, test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PREVIOUS: ${{ needs.changes.outputs.previous }}
+      TAG: ${{ needs.changes.outputs.next }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-results
+          path: results
+      - name: Files match their SHA256SUMS
+        run: cd release && sha256sum -c SHA256SUMS
+      - name: Notes
+        run: |
+          {
+            echo "UE4SS built for native Linux Unreal Engine games, loaded with \`LD_PRELOAD\`. See [docs/linux.md](https://github.com/$GITHUB_REPOSITORY/blob/linux/docs/linux.md)."
+            echo
+            echo "Built from \`$(git rev-parse --short HEAD)\`. Unit tests and the integration tests below passed with these exact files."
+            echo
+            echo "### Integration on real dedicated servers"
+            echo
+            cat results/summary.md
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              echo "### Changes since $PREVIOUS"
+              echo
+              echo "Linux port:"
+              git log --no-merges --format='- %s (%h)' --author='Cristopfer' "$PREVIOUS..HEAD" | head -60
+              echo
+              echo "From upstream (UE4SS-RE/RE-UE4SS):"
+              git log --no-merges --format='- %s (%h)' --perl-regexp --author='^((?!Cristopfer).*)$' "$PREVIOUS..HEAD" | head -80
+              echo
+              pin_old=$(git rev-parse "$PREVIOUS:deps/first/Unreal")
+              pin_new=$(git rev-parse HEAD:deps/first/Unreal)
+              [ "$pin_old" = "$pin_new" ] || echo "UEPseudo: [$(echo $pin_old | cut -c1-7)...$(echo $pin_new | cut -c1-7)](https://github.com/ocristopfer/UEPseudo/compare/$pin_old...$pin_new)"
+            fi
+            echo
+            echo "Files are listed with their hashes in \`SHA256SUMS\`. The game panel installs a release only when its game profile is moved to this tag."
+          } > notes.md
+          cat notes.md
+      - name: Release
+        run: |
+          gh release create "$TAG" release/* --target "$GITHUB_SHA" --title "UE4SS for Linux ${TAG#linux-}" --notes-file notes.md --latest

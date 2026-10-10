@@ -102,6 +102,15 @@ foreach(project ${PROJECTS})
     add_subdirectory(${project})
 endforeach()
 
+# Linux port tests (ctest): rules of the Itanium ABI, the scanner and what the .so exports.
+if(NOT WIN32)
+    option(UE4SS_LINUX_TESTS "Build the Linux port tests" ON)
+    if(UE4SS_LINUX_TESTS)
+        enable_testing()
+        add_subdirectory(tests/linux)
+    endif()
+endif()
+
 # Organize all targets using the master function
 # Uses organize_all_targets() from cmake/modules/IDEOrganization.cmake
 organize_all_targets()

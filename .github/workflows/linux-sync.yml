@@ -1,0 +1,81 @@
+# Keeps the Linux fork on top of upstream: every day, `main` of ocristopfer/RE-UE4SS and
+# ocristopfer/UEPseudo fast-forward to UE4SS-RE/RE-UE4SS and Re-UE4SS/UEPseudo, and the upstream
+# work is merged into `linux` through a pull request (branch `sync/upstream`), where linux-ci.yml
+# builds, runs the unit tests and the integration tests on real servers. A conflict opens an issue
+# instead. Nothing reaches `linux` or a release without the tests (tools/linux-release/sync_upstream.sh).
+#
+# Needs the secret FORK_SYNC_TOKEN: a classic token with the `repo` and `workflow` scopes, from an
+# account that can read Re-UE4SS/UEPseudo (private, like our fork of it; a fine-grained token cannot
+# reach another owner's private repository). `workflow`, because upstream changes its own
+# .github/workflows; and a pull request opened with it (not with GITHUB_TOKEN) is what starts
+# linux-ci.yml.
+name: Linux upstream sync
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+    steps:
+      - name: Token
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::the FORK_SYNC_TOKEN secret is not set"; exit 1; fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: linux
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+
+      - name: UEPseudo submodule with history
+        run: |
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init deps/first/Unreal
+          git -C deps/first/Unreal fetch -q --unshallow 2>/dev/null || true
+
+      - name: Merge upstream
+        id: sync
+        run: |
+          git config user.name "ue4ss-linux-sync"
+          git config user.email "ue4ss-linux-sync@users.noreply.github.com"
+          git -C deps/first/Unreal config user.name "ue4ss-linux-sync"
+          git -C deps/first/Unreal config user.email "ue4ss-linux-sync@users.noreply.github.com"
+          bash tools/linux-release/sync_upstream.sh sync-out
+          echo "status=$(cat sync-out/status)" >> "$GITHUB_OUTPUT"
+          cat sync-out/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull request into linux
+        if: steps.sync.outputs.status == 'merged'
+        run: |
+          title="Sync upstream ($(date -u +%Y-%m-%d))"
+          number=$(gh pr list -R "$GITHUB_REPOSITORY" --head sync/upstream --base linux --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" -R "$GITHUB_REPOSITORY" --title "$title" --body-file sync-out/summary.md
+            echo "updated #$number"
+          else
+            gh pr create -R "$GITHUB_REPOSITORY" --head sync/upstream --base linux --title "$title" --body-file sync-out/summary.md
+          fi
+
+      - name: Issue on conflict
+        if: steps.sync.outputs.status == 'conflict'
+        run: |
+          gh label create upstream-sync -R "$GITHUB_REPOSITORY" --color D93F0B --description "Upstream merge needs a hand" 2>/dev/null || true
+          number=$(gh issue list -R "$GITHUB_REPOSITORY" --label upstream-sync --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" -R "$GITHUB_REPOSITORY" --body-file sync-out/summary.md
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "Upstream sync: merge conflict" --label upstream-sync --body-file sync-out/summary.md
+          fi
+          exit 1
