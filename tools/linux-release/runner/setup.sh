@@ -9,6 +9,8 @@
 set -euo pipefail
 repo=${1:-ocristopfer/RE-UE4SS}
 here=$(cd "$(dirname "$0")" && pwd)
+# Git Bash on Windows: Docker gets a Windows path, and /var/run/docker.sock must stay as written.
+if command -v cygpath >/dev/null; then here=$(cygpath -m "$here"); export MSYS_NO_PATHCONV=1; fi
 name=ue4ss-games-runner
 
 docker build -t "$name" "$here"
