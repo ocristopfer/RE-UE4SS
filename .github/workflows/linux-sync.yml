@@ -33,7 +33,7 @@ jobs:
         run: |
           if [ -z "$GH_TOKEN" ]; then echo "::error::the FORK_SYNC_TOKEN secret is not set"; exit 1; fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: linux
           fetch-depth: 0

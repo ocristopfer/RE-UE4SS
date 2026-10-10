@@ -30,7 +30,7 @@ jobs:
     name: UEPseudo linux follows the pin
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
       - name: Fast-forward ocristopfer/UEPseudo linux to the commit this branch uses
@@ -57,7 +57,7 @@ jobs:
       previous: ${{ steps.check.outputs.previous }}
       next: ${{ steps.check.outputs.next }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -95,15 +95,15 @@ jobs:
       PREVIOUS: ${{ needs.changes.outputs.previous }}
       TAG: ${{ needs.changes.outputs.next }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-candidate
           path: release
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: integration-results
           path: results

@@ -34,7 +34,7 @@ jobs:
     name: Build and unit tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -55,7 +55,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang-20 lld-20 llvm-20 ninja-build ccache
           rustup toolchain install stable --profile minimal
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cache/ccache
@@ -82,7 +82,7 @@ jobs:
       - name: Python tools compile
         run: python3 -m py_compile tools/linux-layouts/*.py tests/linux/integration/run_game.py
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: libUE4SS-linux
           path: build/${{ env.BUILD_TYPE }}/lib/libUE4SS.so
@@ -101,11 +101,11 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       DRAGONWILDS_OWNER_ID: ${{ secrets.DRAGONWILDS_OWNER_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: libUE4SS-linux
           path: candidate
@@ -127,7 +127,7 @@ jobs:
         run: |
           { echo "### Integration on real servers"; echo; cat integration-results/summary.md 2>/dev/null || echo "no summary"; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: integration-results
@@ -137,7 +137,7 @@ jobs:
             integration-results/summary.md
           retention-days: 30
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-candidate
           path: release-candidate
