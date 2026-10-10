@@ -10,7 +10,7 @@
 #      conflicts whenever upstream bumped its submodule: it takes our UEPseudo merge, which contains
 #      the commit upstream pinned (checked).
 #   4. Both sync branches are pushed; the workflow opens the pull request into `linux`, where CI
-#      and the integration tests run. Nothing reaches `linux` without them.
+#      builds and tests it. Nothing reaches `linux` without that.
 # Writes <out-dir>/status (up-to-date|merged|conflict), <out-dir>/summary.md and, on a conflict,
 # <out-dir>/conflicts.txt. Nothing is pushed on a conflict.
 set -euo pipefail
@@ -122,8 +122,8 @@ fi
 git push -q -f origin "HEAD:refs/heads/$branch"
 echo merged > "$out/status"
 {
-    echo "Upstream work merged into \`linux\`. CI and the integration tests on real servers run on this pull request;"
-    echo "merging it releases nothing by itself - the Linux release workflow decides after its own tests."
+    echo "Upstream work merged into \`linux\`. Linux CI builds and tests this pull request. Before merging, the"
+    echo "real-server tests can be run by hand: tests/linux/integration/run.sh (see docs/linux.md)."
     echo
     if [ $main_changed = 1 ]; then
         echo "### RE-UE4SS (UE4SS-RE/RE-UE4SS main)"

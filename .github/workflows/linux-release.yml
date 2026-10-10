@@ -1,6 +1,6 @@
 # Publishes `linux-vN` when `linux` changes what users install, and only after the same build passed
-# the unit tests and the integration tests on real servers (linux-ci.yml). The release files are the
-# exact ones the integration tests installed. Users are not moved by a new release: the game panel
+# the tests of linux-ci.yml (no game needed; the real-server tests of tests/linux/integration run by
+# hand before moving a game profile). The release files are the exact ones CI built and tested. Users are not moved by a new release: the game panel
 # pins a tag per game profile, and moving a profile to the new tag is a decision made there.
 name: Linux release
 
@@ -9,10 +9,6 @@ on:
     branches: [linux]
   workflow_dispatch:
     inputs:
-      games:
-        description: "Servers that must pass: gate, all, or names"
-        type: string
-        default: gate
       force:
         description: "Release even if nothing users install changed since the last tag"
         type: boolean
@@ -80,8 +76,6 @@ jobs:
     needs: [uepseudo, changes]
     if: needs.changes.outputs.release == 'true'
     uses: ./.github/workflows/linux-ci.yml
-    with:
-      games: ${{ inputs.games || 'gate' }}
     secrets: inherit
 
   publish:
@@ -103,10 +97,6 @@ jobs:
         with:
           name: release-candidate
           path: release
-      - uses: actions/download-artifact@v8
-        with:
-          name: integration-results
-          path: results
       - name: Files match their SHA256SUMS
         run: cd release && sha256sum -c SHA256SUMS
       - name: Notes
@@ -114,11 +104,8 @@ jobs:
           {
             echo "UE4SS built for native Linux Unreal Engine games, loaded with \`LD_PRELOAD\`. See [docs/linux.md](https://github.com/$GITHUB_REPOSITORY/blob/linux/docs/linux.md)."
             echo
-            echo "Built from \`$(git rev-parse --short HEAD)\`. Unit tests and the integration tests below passed with these exact files."
-            echo
-            echo "### Integration on real dedicated servers"
-            echo
-            cat results/summary.md
+            echo "Built from \`$(git rev-parse --short HEAD)\`. The Linux CI tests (tests/linux: Itanium ABI rules, scanner, exports, a simulated server startup) passed with these exact files."
+            echo "The tests on real dedicated servers (tests/linux/integration) are run by hand before a game profile of the panel moves to this tag."
             echo
             if [ -n "$PREVIOUS" ]; then
               echo "### Changes since $PREVIOUS"

@@ -1,23 +1,15 @@
-# Linux build of the fork: libUE4SS.so with Clang, the unit tests (tests/linux) and the integration
-# tests on real dedicated servers (tests/linux/integration), on the self-hosted runner that has the
-# game volumes. Runs on every pull request into `linux` (the upstream sync ones included) and is
-# called by linux-release.yml before anything is published.
+# Linux build of the fork: libUE4SS.so with Clang and the tests of tests/linux, which need no game
+# (Itanium ABI rules, the scanner, the exports, the library inert outside a game, and a simulated
+# server startup). Runs on every pull request into `linux` (the upstream sync ones included) and is
+# called by linux-release.yml before anything is published. The integration tests on real dedicated
+# servers (tests/linux/integration) are not run here: they run by hand, on a machine that has them.
 name: Linux CI
 
 on:
   pull_request:
     branches: [linux]
   workflow_dispatch:
-    inputs:
-      games:
-        description: "Servers to test: gate, all, or names from tests/linux/integration/games.json"
-        type: string
-        default: gate
   workflow_call:
-    inputs:
-      games:
-        type: string
-        default: gate
 
 permissions:
   contents: read
@@ -31,8 +23,10 @@ env:
 
 jobs:
   build:
-    name: Build and unit tests
+    name: Build and tests
     runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -45,7 +39,9 @@ jobs:
           TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then echo "::error::the FORK_SYNC_TOKEN secret is needed to fetch the private UEPseudo submodule"; exit 1; fi
-          git -c url."https://x-access-token:${TOKEN}@github.com/ocristopfer/UEPseudo".insteadOf="https://github.com/ocristopfer/UEPseudo"               -c url."https://github.com/".insteadOf="git@github.com:"               submodule update --init --recursive --depth 1
+          git -c url."https://x-access-token:${TOKEN}@github.com/ocristopfer/UEPseudo".insteadOf="https://github.com/ocristopfer/UEPseudo" \
+              -c url."https://github.com/".insteadOf="git@github.com:" \
+              submodule update --init --recursive --depth 1
 
       - name: Toolchain (Clang 20, Ninja, ccache)
         run: |
@@ -76,69 +72,23 @@ jobs:
       - name: Build
         run: cmake --build build --target UE4SS linux_itanium_abi_test linux_scanner_selfscan_test
 
-      - name: Unit tests
+      - name: Tests
         run: ctest --test-dir build --output-on-failure
 
       - name: Python tools compile
         run: python3 -m py_compile tools/linux-layouts/*.py tests/linux/integration/run_game.py
 
-      - uses: actions/upload-artifact@v7
-        with:
-          name: libUE4SS-linux
-          path: build/${{ env.BUILD_TYPE }}/lib/libUE4SS.so
-          if-no-files-found: error
-          retention-days: 30
-
-  integration:
-    name: Integration (real servers)
-    needs: build
-    # The self-hosted runner runs game servers on the owner's machine: never for a pull request
-    # from another repository.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, ue4ss-games]
-    timeout-minutes: 240
-    env:
-      GH_TOKEN: ${{ github.token }}
-      DRAGONWILDS_OWNER_ID: ${{ secrets.DRAGONWILDS_OWNER_ID }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: libUE4SS-linux
-          path: candidate
-
-      - name: Reference packs of the latest Linux release
+      - name: Release candidate
+        # The reference packs come from game files, not from this build: the latest release's carry over.
         run: |
           tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 50 --json tagName --jq '[.[].tagName | select(startswith("linux-v"))] | sort_by(ltrimstr("linux-v") | tonumber) | last')
-          echo "packs from $tag"
-          gh release download "$tag" -R "$GITHUB_REPOSITORY" -p LinuxReferencePacks.tar.gz -D candidate
-
-      - name: Release candidate
-        run: bash tools/linux-release/package.sh candidate/libUE4SS.so candidate/LinuxReferencePacks.tar.gz release-candidate
-
-      - name: Servers
-        run: bash tests/linux/integration/run.sh release-candidate "${{ inputs.games || 'gate' }}" integration-results
-
-      - name: Summary
-        if: always()
-        run: |
-          { echo "### Integration on real servers"; echo; cat integration-results/summary.md 2>/dev/null || echo "no summary"; } >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: integration-results
-          path: |
-            integration-results/*/result.json
-            integration-results/*/server.log
-            integration-results/summary.md
-          retention-days: 30
+          echo "reference packs from $tag"
+          gh release download "$tag" -R "$GITHUB_REPOSITORY" -p LinuxReferencePacks.tar.gz -D packs
+          bash tools/linux-release/package.sh "build/$BUILD_TYPE/lib/libUE4SS.so" packs/LinuxReferencePacks.tar.gz release-candidate
 
       - uses: actions/upload-artifact@v7
         with:
           name: release-candidate
           path: release-candidate
+          if-no-files-found: error
           retention-days: 30
