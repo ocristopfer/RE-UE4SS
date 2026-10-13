@@ -1335,6 +1335,17 @@ namespace RC
                 {
                     if (mod->is_started())
                     {
+                        if (const auto cpp_mod = dynamic_cast<CppMod*>(mod.get()))
+                        {
+                            const auto user_mod = cpp_mod->get_user_mod();
+                            if (user_mod)
+                            {
+                                user_mod->dispatch_on_ue4ss_update();
+                            }
+                        }
+                        // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+                        //       These old virtuals must still be called in order to keep old mods working.
+                        //       Removing these virtual calls breaks both ABI and API.
                         mod->fire_update();
                     }
                 }
@@ -1494,6 +1505,14 @@ namespace RC
             {
                 continue;
             }
+            const auto user_mod = static_cast<CppMod*>(mod.get())->get_user_mod();
+            if (user_mod)
+            {
+                user_mod->dispatch_on_unreal_init();
+            }
+            // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+            //       These old virtuals must still be called in order to keep old mods working.
+            //       Removing these virtual calls breaks both ABI and API.
             mod->fire_unreal_init();
         }
     }
@@ -1507,6 +1526,14 @@ namespace RC
             {
                 continue;
             }
+            const auto user_mod = static_cast<CppMod*>(mod.get())->get_user_mod();
+            if (user_mod)
+            {
+                user_mod->dispatch_on_ui_init();
+            }
+            // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+            //       These old virtuals must still be called in order to keep old mods working.
+            //       Removing these virtual calls breaks both ABI and API.
             mod->fire_ui_init();
         }
     }
@@ -1520,6 +1547,14 @@ namespace RC
             {
                 continue;
             }
+            const auto user_mod = static_cast<CppMod*>(mod.get())->get_user_mod();
+            if (user_mod)
+            {
+                user_mod->dispatch_on_program_start();
+            }
+            // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+            //       These old virtuals must still be called in order to keep old mods working.
+            //       Removing these virtual calls breaks both ABI and API.
             mod->fire_program_start();
         }
     }
@@ -1530,6 +1565,14 @@ namespace RC
         {
             if (auto cpp_mod = dynamic_cast<CppMod*>(mod.get()); cpp_mod)
             {
+                const auto user_mod = cpp_mod->get_user_mod();
+                if (user_mod)
+                {
+                    user_mod->dispatch_on_dll_load(dll_name);
+                }
+                // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+                //       These old virtuals must still be called in order to keep old mods working.
+                //       Removing these virtual calls breaks both ABI and API.
                 cpp_mod->fire_dll_load(dll_name);
             }
         }
@@ -1541,6 +1584,14 @@ namespace RC
         {
             if (auto cpp_mod = dynamic_cast<CppMod*>(mod.get()); cpp_mod)
             {
+                const auto user_mod = cpp_mod->get_user_mod();
+                if (user_mod)
+                {
+                    user_mod->dispatch_on_all_cpp_mods_loaded();
+                }
+                // NOTE: Legacy virtual event dispatch, not ABI stable to add new events, therefore we now use the new EventDispatcher system.
+                //       These old virtuals must still be called in order to keep old mods working.
+                //       Removing these virtual calls breaks both ABI and API.
                 cpp_mod->fire_on_cpp_mods_loaded();
             }
         }
