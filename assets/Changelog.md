@@ -253,6 +253,8 @@ Added support for handling structs as userdata (Fixed `StructData as userdata is
 
 Added `ModRef.OnUnload` lua function, registers a callback to be called when the mod is unloaded via hot reload or any other means ([UE4SS #1394](https://github.com/UE4SS-RE/RE-UE4SS/pull/1394))
 
+Added `println` global lua function, just like `print`, except adds a new line character automatically ([UE4SS #1451](https://github.com/UE4SS-RE/RE-UE4SS/pull/1451))
+
 #### Types.lua [PR #650](https://github.com/UE4SS-RE/RE-UE4SS/pull/650) 
 - Added `NAME_None` definition 
 - Added `EFindName` enum definition 
@@ -339,6 +341,11 @@ Added improved string and path conversion utilities with proper UTF-8 support ([
 - **BREAKING:** `to_charT_string_path()` now returns UTF-8 encoded strings for char type instead of locale-dependent encoding
 
 Added `RC::await_debugger` in `Helpers/Debug.hpp`. ([UE4SS #1314](https://github.com/UE4SS-RE/RE-UE4SS/pull/1314))
+
+Added registration functions for C++ mod events. ([UE4SS #1431](https://github.com/UE4SS-RE/RE-UE4SS/pull/1431))
+- These are analogous to the virtual functions that can be overridden from CppUserModBase.
+- They are intended to replace the virtual functions for ABI reasons, but the virtual functions will also be maintained for now.
+- No new virtual functions will be added to CppUserModBase, and no existing virtual functions will be removed.
 
 ### BPModLoader 
 
