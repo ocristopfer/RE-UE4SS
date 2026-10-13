@@ -124,7 +124,11 @@ The fork follows upstream on its own; what runs where:
   the process to end normally).
 - **Release** (`.github/workflows/linux-release.yml`, every push to `linux`, GitHub): when anything
   users install changed since the last `linux-v*` tag, the CI build and tests run and those exact
-  files become `linux-vN`. The game panel pins a tag per game profile, so a new release reaches a
+  files become `linux-vX.Y.Z`. The version follows what changed in those files
+  (`tools/linux-release/next_version.sh`): **major** for a breaking change (`type!:` subject,
+  `BREAKING CHANGE` in the body), **minor** for a feature (`feat:` subject, a new mod), **patch** for
+  everything else; a `Release: major|minor|patch` trailer in a commit message, or the `bump` input of a
+  manual run, decides it by hand. The game panel pins a tag per game profile, so a new release reaches a
   server only when its profile is moved.
 - **Real servers** (`tests/linux/integration`, by hand, on the machine of whoever wants them - usually
   before moving a game profile): each server of `games.json` starts in Docker from a volume where it

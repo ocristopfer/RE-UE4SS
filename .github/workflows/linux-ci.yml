@@ -81,7 +81,7 @@ jobs:
       - name: Release candidate
         # The reference packs come from game files, not from this build: the latest release's carry over.
         run: |
-          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 50 --json tagName --jq '[.[].tagName | select(startswith("linux-v"))] | sort_by(ltrimstr("linux-v") | tonumber) | last')
+          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 50 --json tagName --jq '[.[].tagName | select(startswith("linux-v"))] | sort_by(ltrimstr("linux-v") | split(".") | map(tonumber)) | last')
           echo "reference packs from $tag"
           gh release download "$tag" -R "$GITHUB_REPOSITORY" -p LinuxReferencePacks.tar.gz -D packs
           bash tools/linux-release/package.sh "build/$BUILD_TYPE/lib/libUE4SS.so" packs/LinuxReferencePacks.tar.gz release-candidate

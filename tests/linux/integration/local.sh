@@ -32,7 +32,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
         url=$(curl -fsSL "$api?per_page=50" | python3 -c "
 import json, sys
 rels = [r for r in json.load(sys.stdin) if r[\"tag_name\"].startswith(\"linux-v\")]
-rel = max(rels, key=lambda r: int(r[\"tag_name\"][7:]))
+rel = max(rels, key=lambda r: tuple(int(x) for x in r[\"tag_name\"][7:].split(\".\")))
 print(next(a[\"browser_download_url\"] for a in rel[\"assets\"] if a[\"name\"] == \"LinuxReferencePacks.tar.gz\"))")
         mkdir -p /tmp/packs && curl -fsSL "$url" -o /tmp/packs/LinuxReferencePacks.tar.gz
         bash /src/tools/linux-release/package.sh "$LIB" /tmp/packs/LinuxReferencePacks.tar.gz /tmp/release

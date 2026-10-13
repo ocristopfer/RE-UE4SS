@@ -1,7 +1,10 @@
-# Publishes `linux-vN` when `linux` changes what users install, and only after the same build passed
+# Publishes `linux-vX.Y.Z` when `linux` changes what users install, and only after the same build passed
 # the tests of linux-ci.yml (no game needed; the real-server tests of tests/linux/integration run by
 # hand before moving a game profile). The release files are the exact ones CI built and tested. Users are not moved by a new release: the game panel
 # pins a tag per game profile, and moving a profile to the new tag is a decision made there.
+# The version follows what changed (tools/linux-release/next_version.sh): major for breaking changes,
+# minor for features (`feat:` commits, new mods), patch for the rest; `Release: major|minor|patch` in a
+# commit message overrides it.
 name: Linux release
 
 on:
@@ -13,6 +16,11 @@ on:
         description: "Release even if nothing users install changed since the last tag"
         type: boolean
         default: false
+      bump:
+        description: "Version bump (auto: decided from the commits since the last tag)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
 
 permissions:
   contents: read
@@ -52,23 +60,31 @@ jobs:
       release: ${{ steps.check.outputs.release }}
       previous: ${{ steps.check.outputs.previous }}
       next: ${{ steps.check.outputs.next }}
+      bump: ${{ steps.check.outputs.bump }}
+      reason: ${{ steps.check.outputs.reason }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
       - id: check
+        env:
+          BUMP: ${{ inputs.bump || 'auto' }}
+          FORCE: ${{ inputs.force || false }}
         run: |
-          previous=$(git tag -l 'linux-v*' | sort -V | tail -1)
-          n=${previous#linux-v}
-          echo "previous=$previous" >> "$GITHUB_OUTPUT"
-          echo "next=linux-v$((n + 1))" >> "$GITHUB_OUTPUT"
-          paths="UE4SS deps cmake CMakeLists.txt cppmods assets/UE4SS-settings.ini assets/Mods/shared assets/VTableLayoutTemplates"
-          if [ "${{ inputs.force }}" = true ] || [ -z "$previous" ] || [ -n "$(git diff --name-only "$previous" HEAD -- $paths)" ]; then
-            echo "release=true" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          bash tools/linux-release/next_version.sh "$BUMP" "$FORCE" | tee -a "$GITHUB_OUTPUT"
+      - name: Summary
+        env:
+          RELEASE: ${{ steps.check.outputs.release }}
+          NEXT: ${{ steps.check.outputs.next }}
+          BUMP: ${{ steps.check.outputs.bump }}
+          REASON: ${{ steps.check.outputs.reason }}
+        run: |
+          if [ "$RELEASE" = true ]; then
+            echo "Next release: **$NEXT** ($BUMP: $REASON)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            echo "Nothing users install changed since $previous: no release." >> "$GITHUB_STEP_SUMMARY"
+            echo "No release: $REASON." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   test:
@@ -88,6 +104,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       PREVIOUS: ${{ needs.changes.outputs.previous }}
       TAG: ${{ needs.changes.outputs.next }}
+      BUMP: ${{ needs.changes.outputs.bump }}
+      REASON: ${{ needs.changes.outputs.reason }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -103,6 +121,8 @@ jobs:
         run: |
           {
             echo "UE4SS built for native Linux Unreal Engine games, loaded with \`LD_PRELOAD\`. See [docs/linux.md](https://github.com/$GITHUB_REPOSITORY/blob/linux/docs/linux.md)."
+            echo
+            [ -z "$PREVIOUS" ] || echo "Version: $BUMP over $PREVIOUS - $REASON."
             echo
             echo "Built from \`$(git rev-parse --short HEAD)\`. The Linux CI tests (tests/linux: Itanium ABI rules, scanner, exports, a simulated server startup) passed with these exact files."
             echo "The tests on real dedicated servers (tests/linux/integration) are run by hand before a game profile of the panel moves to this tag."
