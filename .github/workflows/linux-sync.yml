@@ -70,7 +70,14 @@ jobs:
 
       - name: Issue on conflict
         if: steps.sync.outputs.status == 'conflict'
+        # The run fails on purpose (the conflict needs a hand); the issue is where it is tracked. With issues
+        # turned off in the repository (the default for forks) the failed run is the only notice.
         run: |
+          echo "::error title=Upstream merge conflict::$(tr '\n' ' ' < sync-out/conflicts.txt)- see the job summary"
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .has_issues)" != true ]; then
+            echo "::warning::issues are turned off in $GITHUB_REPOSITORY: no issue opened (gh repo edit --enable-issues)"
+            exit 1
+          fi
           gh label create upstream-sync -R "$GITHUB_REPOSITORY" --color D93F0B --description "Upstream merge needs a hand" 2>/dev/null || true
           number=$(gh issue list -R "$GITHUB_REPOSITORY" --label upstream-sync --state open --json number --jq '.[0].number')
           if [ -n "$number" ]; then

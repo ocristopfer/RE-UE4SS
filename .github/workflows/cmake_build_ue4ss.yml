@@ -55,7 +55,9 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.UEPSEUDO_PAT }}
-          ref: ${{inputs.commit-sha}}
+          # Every caller passes github.sha, which in a reusable workflow is the caller's own commit; checking
+          # it out directly (not the input) keeps an arbitrary ref out of the cached build (CodeQL cache poisoning).
+          ref: ${{ github.sha }}
           fetch-depth: 0  # Need full history for git diff to work with PR base SHA
 
       # Calculate cache key based on CMakeLists and submodules
