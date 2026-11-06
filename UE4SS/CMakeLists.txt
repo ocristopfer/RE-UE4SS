@@ -120,24 +120,35 @@ if(MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     )
 endif()
 
-# First party static build definitions
+# Ensure all UE4SS related symbols are exported, including first-party dependencies that are statically linked into UE4SS.
+if(MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:ASMHelper>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:File>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:DynamicOutput>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:SinglePassSigScanner>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:Unreal>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:Input>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:LuaMadeSimple>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:ParserBase>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:IniParser>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:JSON>")
+    target_link_options(UE4SS PRIVATE "LINKER:/WHOLEARCHIVE:$<TARGET_FILE:Helpers>")
+    # TODO: Same thing for clang/gcc using '--whole-archive' when not disguised as MSVC ?
+endif()
 target_compile_definitions(UE4SS PRIVATE
     RC_UE4SS_EXPORTS
-    RC_ASM_HELPER_BUILD_STATIC
-    RC_FILE_BUILD_STATIC
-    RC_DYNAMIC_OUTPUT_BUILD_STATIC
-    RC_SINGLE_PASS_SIG_SCANNER_BUILD_STATIC
-    RC_SINGLE_PASS_SIG_SCANNER_STATIC
-    RC_UNREAL_BUILD_STATIC
-    RC_INPUT_BUILD_STATIC
-    RC_LUA_MADE_SIMPLE_BUILD_STATIC
-    RC_FUNCTION_TIMER_BUILD_STATIC
-    RC_PARSER_BASE_BUILD_STATIC
-    RC_INI_PARSER_BUILD_STATIC
-    RC_JSON_BUILD_STATIC
-    RC_JSON_PARSER_BUILD_STATIC
-    RC_LUA_WRAPPER_GENERATOR_BUILD_STATIC
-    RC_HELPERS_BUILD_STATIC
+    RC_ASM_HELPER_EXPORTS
+    RC_FILE_EXPORTS
+    RC_DYNAMIC_OUTPUT_EXPORTS
+    RC_SINGLE_PASS_SIG_SCANNER_EXPORTS
+    RC_UNREAL_EXPORTS
+    RC_INPUT_EXPORTS
+    RC_LUA_MADE_SIMPLE_EXPORTS
+    RC_FUNCTION_TIMER_EXPORTS
+    RC_PARSER_BASE_EXPORTS
+    RC_INI_PARSER_EXPORTS
+    RC_JSON_EXPORTS
+    RC_HELPERS_EXPORTS
 )
 
 # ---------------------------------------------------------------------------
@@ -181,6 +192,15 @@ else()
                         -Wl,-u,_Unwind_RaiseException -Wl,--push-state,-Bstatic,-lgcc_eh,--pop-state
                         -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux_exports.map)
     set_property(TARGET UE4SS APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/linux_exports.map)
+endif()
+
+# ---------------------------------------------------------------------------
+# Metadata Generation
+# ---------------------------------------------------------------------------
+
+if(WIN32)
+    configure_file(version.rc.in ${PROJECT_BINARY_DIR}/version.rc)
+    target_sources(UE4SS PRIVATE ${PROJECT_BINARY_DIR}/version.rc)
 endif()
 
 # ---------------------------------------------------------------------------

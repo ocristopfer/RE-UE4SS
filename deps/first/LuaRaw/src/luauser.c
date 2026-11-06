@@ -21,16 +21,6 @@ void LuaLockInitial(lua_State* L)
     }
 }
 
-void LuaLockFinal(lua_State* L)
-{
-    /* Destroy a mutex. */
-    if (Gl.Init)
-    {
-        DeleteCriticalSection(&Gl.LockSct);
-        Gl.Init = FALSE;
-    }
-}
-
 void LuaLock(lua_State* L)
 {
     LuaLockInitial(L);
