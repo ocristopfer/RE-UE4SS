@@ -1,8 +1,85 @@
-v4.0.0-rc1
+v4.1.0
+==============
+TBD
+
+**Important:** There is currently no important information for this release.
+
+> [!NOTE]
+> One of our maintainers, Narknon, is developing a modding friendly sandbox adventure game in UE 5.8.
+> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/) or following [Noro Softworks](https://linktr.ee/norosoftworks).
+
+## New
+
+### General
+
+### Live View
+
+### Lua Debugger
+
+### UHT Dumper
+
+### Static Mesh Dumper
+
+### Lua API
+
+### C++ API
+
+### BPModLoader
+
+### Experimental
+
+
+## Changes
+
+### General
+
+### Live View
+
+### UHT Dumper
+
+### Lua API
+
+### C++ API
+
+### BPModLoader
+
+### ConsoleEnablerMod
+
+### Repo & Build Process
+
+
+## Fixes
+
+### General
+
+### Live View
+
+### UHT Dumper
+
+### Lua API
+
+### C++ API
+
+### BPModLoader
+
+### EventViewerMod
+
+## Settings
+
+### Added
+
+### Removed
+
+
+v4.0.0
 ==============
 TBD
 
 **Important:** The default installation layout has changed. All UE4SS files (including UE4SS.dll, settings, and mods) now reside in a `ue4ss` subfolder next to your game executable. Only the proxy DLL (dwmapi.dll) remains in the game's Win64 directory. This keeps your game folder cleaner and makes it easier to manage UE4SS installations. Existing installations in the old location will continue to work for backwards compatibility if the UE4SS dll is replaced directly.
+
+> [!NOTE]
+> One of our maintainers, Narknon, is developing a modding friendly sandbox adventure game in UE 5.8.
+> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/) or following [Noro Softworks](https://linktr.ee/norosoftworks).
 
 ## New
 
