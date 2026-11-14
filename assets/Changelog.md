@@ -6,7 +6,7 @@ TBD
 
 > [!NOTE]
 > One of our maintainers, Narknon, is developing a modding friendly sandbox adventure game in UE 5.8.
-> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/) or following [Noro Softworks](https://linktr.ee/norosoftworks).
+> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/?utm_source=ue4ss&utm_medium=github&utm_campaign=release_notes) or following [Noro Softworks](https://linktr.ee/norosoftworks).
 
 ## New
 
@@ -79,7 +79,7 @@ TBD
 
 > [!NOTE]
 > One of our maintainers, Narknon, is developing a modding friendly sandbox adventure game in UE 5.8.
-> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/) or following [Noro Softworks](https://linktr.ee/norosoftworks).
+> If you'd like to support them, consider checking out and/or wishlisting [Noro on Steam](https://store.steampowered.com/app/5363190/Noro/?utm_source=ue4ss&utm_medium=github&utm_campaign=release_notes) or following [Noro Softworks](https://linktr.ee/norosoftworks).
 
 ## New
 
@@ -172,6 +172,8 @@ Added custom game configurations for Whiskerwood ([UE4SS #1079](https://github.c
 Added custom game configurations for StarRupture ([UE4SS #1150](https://github.com/UE4SS-RE/RE-UE4SS/pull/1150))
 
 Added custom game configuration for The Talos Principle 2 ([UE4SS #1458](https://github.com/UE4SS-RE/RE-UE4SS/pull/1458))
+
+Added custom game configuration for Phantom Blade Zero ([UE4SS #1484](https://github.com/UE4SS-RE/RE-UE4SS/pull/1484))
 
 The GUI can now be rendered in the game thread if `RenderMode` in UE4SS-settings.ini is set to
 `EngineTick` or `GameViewportClientTick` ([UE4SS #768](https://github.com/UE4SS-RE/RE-UE4SS/pull/768), [UE4SS #794](https://github.com/UE4SS-RE/RE-UE4SS/pull/794)).
